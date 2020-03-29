@@ -24,7 +24,7 @@ export class LVPlayer {
     this._playerVolumeRange = this.playerUI.playerVolumeRange.DOM;
     this._playerTime = this.playerUI.playerTime.DOM;
     this._playerLoadingFile = this.playerUI.playerLoadingFile.DOM;
-    this._playerVolumePopup = this.playerUI.playerVolumePopup.DOM;
+    this._playerPopup = this.playerUI.playerPopup.DOM;
     this._buttons = [
       this._uploadVideo,
       this._uploadSubtitles,
@@ -41,12 +41,13 @@ export class LVPlayer {
     ];
   }
   PlayerEvents() {
-    this._uploadVideo.onchange = (e) => {
-      const files = [...e.target.files].sort((a, b) =>
-        a.name > b.name ? 1 : -1,
-      );
-
-      this.uploadFile(files[0]).then((src) => this.loadFile(src, 'video'));
+    this._uploadVideo.onchange = e => {
+      const collator = new Intl.Collator(undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+      const files = [...e.target.files].sort(collator.compare);
+      this.uploadFile(files[0]).then(src => this.loadFile(src, 'video'));
 
       this._playlistList.innerHTML = '';
       if (files.length > 1) {
@@ -56,38 +57,42 @@ export class LVPlayer {
       }
     };
 
-    this._uploadSubtitles.onchange = (e) => {
-      this.uploadFile(e.target.files[0]).then((src) =>
+    this._uploadSubtitles.onchange = e => {
+      this.uploadFile(e.target.files[0]).then(src =>
         this.loadFile(src, 'subtitles'),
       );
     };
 
     this._playerWrapper.onmouseenter = () => {
-      this.ShowGUI();
+      this.showGUI();
     };
     this._playerWrapper.onmouseleave = () => {
-      this.HideGUI();
+      this.hideGUI();
     };
 
     this._player.onmousemove = () => {
       clearTimeout(this._mouseTimer);
-      this.ShowGUI();
+      this.showGUI();
       this._mouseTimer = setTimeout(() => {
-        this.HideGUI();
+        this.hideGUI();
       }, 1700);
     };
 
-    this._playerWrapper.ondragover = (e) => {
+    this._playerWrapper.ondragover = e => {
       e.preventDefault();
     };
 
-    this._playerWrapper.ondrop = (e) => {
+    this._playerWrapper.ondrop = e => {
       e.preventDefault();
+      const collator = new Intl.Collator(undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
       const files = [...e.dataTransfer.files]
-        .filter((file) => String(file.type).includes('video'))
-        .sort((a, b) => (a.name > b.name ? 1 : -1));
+        .filter(file => String(file.type).includes('video'))
+        .sort(collator.compare);
 
-      this.uploadFile(files[0]).then((src) => this.loadFile(src, 'video'));
+      this.uploadFile(files[0]).then(src => this.loadFile(src, 'video'));
 
       this._playlistList.innerHTML = '';
       if (files.length > 1) {
@@ -108,11 +113,11 @@ export class LVPlayer {
     };
 
     this._playButton.DOM.onclick = () => {
-      this.TogglePlay();
+      this.togglePlay();
     };
 
     this._player.onclick = () => {
-      this.TogglePlay();
+      this.togglePlay();
     };
 
     this._player.onpause = () => {
@@ -153,12 +158,12 @@ export class LVPlayer {
       this.printPlayerProgress();
     };
 
-    this._playerProgress.oninput = (e) => {
+    this._playerProgress.oninput = e => {
       this._player.currentTime = e.target.value;
       this.printPlayerProgress();
     };
 
-    this._playerVolumeRange.oninput = (e) => {
+    this._playerVolumeRange.oninput = e => {
       this._player.volume = e.target.value;
     };
 
@@ -190,7 +195,7 @@ export class LVPlayer {
     };
 
     this._volumeButton.DOM.onclick = () => {
-      this.ToggleVolume();
+      this.toggleVolume();
     };
 
     this._player.onfullscreenchange = () => {
@@ -202,63 +207,75 @@ export class LVPlayer {
     };
 
     this._fullscreenButton.DOM.onclick = () => {
-      this.ToggleFullscreen();
+      this.toggleFullscreen();
     };
 
-    this._playerWrapper.onkeydown = (e) => {
-      if (e.key == ' ') {
-        this.TogglePlay();
-      }
-      if (e.key == 'm') {
-        this.ToggleVolume();
-      }
-      if (e.key == 'f') {
-        this.ToggleFullscreen();
-      }
-      if (e.key == 'ArrowLeft') {
-        if (
-          this._player.currentTime != 0 &&
-          this._player.currentTime - this._player.duration * 0.025 > 0
-        ) {
-          this._player.currentTime -= this._player.duration * 0.025;
-        }
-      }
-      if (e.key == 'ArrowRight') {
-        if (
-          this._player.currentTime != this._player.duration &&
-          this._player.currentTime + this._player.duration * 0.025 <
-            this._player.duration
-        ) {
-          this._player.currentTime += this._player.duration * 0.025;
-        }
-      }
-      if (e.key == 'ArrowUp') {
-        if (this._player.volume <= 0.9) {
-          this._player.volume += 0.1;
-          this._playerVolumePopup.innerHTML = `${Math.floor(
-            this._player.volume * 100,
-          )}%`;
-          this._playerVolumePopup.style.opacity = 1;
-          setTimeout(() => {
-            this._playerVolumePopup.style.opacity = 0;
-          }, 1500);
-        }
-      }
-      if (e.key == 'ArrowDown') {
-        if (this._player.volume >= 0.1) {
-          this._player.volume -= 0.1;
-          this._playerVolumePopup.innerHTML = `${Math.floor(
-            this._player.volume * 100,
-          )}%`;
-          this._playerVolumePopup.style.opacity = 1;
-          setTimeout(() => {
-            this._playerVolumePopup.style.opacity = 0;
-          }, 1500);
-        }
-      }
+    this._playerWrapper.onkeydown = e => {
+      this.setShortcut(e);
+    };
+
+    document.onfullscreenchange = () => {
+      this.fullScreenShortcuts();
     };
   }
-
+  setShortcut(e) {
+    if (e.key == ' ') {
+      this.togglePlay();
+    }
+    if (e.key == 'm') {
+      this.toggleVolume();
+    }
+    if (e.key == 'f') {
+      this.toggleFullscreen();
+    }
+    if (e.key == 'ArrowLeft' && e.ctrlKey) {
+      if (
+        this._player.playbackRate >= 0.5 &&
+        this._player.playbackRate - 0.25 > 0
+      ) {
+        this._player.playbackRate -= 0.25;
+        this.showPopup(`x ${this._player.playbackRate}`);
+      }
+    }
+    if (e.key == 'ArrowRight' && e.ctrlKey) {
+      if (
+        this._player.playbackRate <= 3 &&
+        this._player.playbackRate + 0.25 <= 3
+      ) {
+        this._player.playbackRate += 0.25;
+        this.showPopup(`x ${this._player.playbackRate}`);
+      }
+    }
+    if (e.key == 'ArrowLeft' && !e.ctrlKey) {
+      if (
+        this._player.currentTime != 0 &&
+        this._player.currentTime - this._player.duration * 0.025 > 0
+      ) {
+        this._player.currentTime -= this._player.duration * 0.025;
+      }
+    }
+    if (e.key == 'ArrowRight' && !e.ctrlKey) {
+      if (
+        this._player.currentTime != this._player.duration &&
+        this._player.currentTime + this._player.duration * 0.025 <
+          this._player.duration
+      ) {
+        this._player.currentTime += this._player.duration * 0.025;
+      }
+    }
+    if (e.key == 'ArrowUp') {
+      if (this._player.volume <= 0.9) {
+        this._player.volume += 0.1;
+        this.showPopup(`${Math.floor(this._player.volume * 100)}%`);
+      }
+    }
+    if (e.key == 'ArrowDown') {
+      if (this._player.volume >= 0.1) {
+        this._player.volume -= 0.1;
+        this.showPopup(`${Math.floor(this._player.volume * 100)}%`);
+      }
+    }
+  }
   uploadFile(file) {
     const filePromise = new Promise((resolve, reject) => {
       const fileReader = new FileReader();
@@ -275,7 +292,7 @@ export class LVPlayer {
       fileReader.readAsArrayBuffer(file);
 
       if (!file.name.endsWith('.vtt')) {
-        fileReader.onprogress = (e) => {
+        fileReader.onprogress = e => {
           this._playerLoadingFile.max = e.total;
           this._playerLoadingFile.value = e.loaded;
           this._playerLoadingFile.style.opacity = '1';
@@ -309,12 +326,12 @@ export class LVPlayer {
     li.appendChild(document.createTextNode(name));
     li.setAttribute('class', 'lvplayer__playlist__element');
     li.setAttribute('data-index', i);
-    li.onclick = (e) => {
+    li.onclick = e => {
       this.setActiveModifier(e.target);
 
       this.cleanPlayerSubtitles();
 
-      this.uploadFile(file).then((src) => this.loadFile(src, 'video'));
+      this.uploadFile(file).then(src => this.loadFile(src, 'video'));
     };
 
     if (i == 1) {
@@ -335,19 +352,19 @@ export class LVPlayer {
     this.activeElement = element;
   }
 
-  ShowGUI() {
+  showGUI() {
     for (let element of this._playerElements) {
       element.style.opacity = '1';
     }
   }
 
-  HideGUI() {
+  hideGUI() {
     for (let element of this._playerElements) {
       element.style.opacity = '0';
     }
   }
 
-  TogglePlay() {
+  togglePlay() {
     if (this._player.src != '') {
       if (!this._player.paused) {
         this._player.pause();
@@ -357,7 +374,7 @@ export class LVPlayer {
     }
   }
 
-  ToggleVolume() {
+  toggleVolume() {
     if (!this._player.volume == 0) {
       this._volumeButton.toggleBgImage('mute');
       this._player.volume = 0;
@@ -369,18 +386,44 @@ export class LVPlayer {
     }
   }
 
-  ToggleFullscreen() {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else if (document.webkitFullscreenElement) {
-      document.exitFullscreen();
-    } else if (document.mozFullScreenElement) {
-      document.exitFullscreen();
-    } else if (document.msFullscreenElement) {
+  toggleFullscreen() {
+    if (
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    ) {
       document.exitFullscreen();
     } else {
       this._player.requestFullscreen();
     }
+  }
+
+  fullScreenShortcuts() {
+    if (
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    ) {
+      document.onkeydown = e => {
+        this.setShortcut(e);
+      };
+      document.onclick = () => {
+        this.togglePlay();
+      };
+    } else {
+      document.onkeydown = null;
+      document.onclick = null;
+    }
+  }
+
+  showPopup(msg) {
+    this._playerPopup.innerHTML = msg;
+    this._playerPopup.style.opacity = 1;
+    setTimeout(() => {
+      this._playerPopup.style.opacity = 0;
+    }, 1500);
   }
 
   printPlayerProgress() {

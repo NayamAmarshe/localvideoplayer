@@ -152,7 +152,7 @@
   background-color: #c8ccd1;
 }
 
-.lvplayer__volumePopup {
+.lvplayer__Popup {
   position: absolute;
   opacity: 0;
   top: 40px;
@@ -209,7 +209,7 @@
 }
 
 .lvplayer__playlist__list {
-  padding: 10px 0 5px 10px;
+  padding: 10px 10px 5px 10px;
   overflow-y: auto;
   list-style-type: none;
   background-color: hsl(0, 0%, 13%, 0.5);
